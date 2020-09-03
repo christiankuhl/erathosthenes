@@ -1,21 +1,24 @@
 use std::time::SystemTime;
+use std::collections::BinaryHeap;
+use std::cmp::Reverse;
 
 struct Primes {
     current: usize,
     limit: Option<usize>,
     count: Option<usize>,
-    yielded: Box<Vec<usize>>
+    composites: BinaryHeap<Reverse<[usize; 2]>>,
+    yielded: usize
 }
 
 impl Primes {
     fn up_to(limit: usize) -> Primes {
-        Primes { current: 2, yielded: Box::new(Vec::new()), count: Some(limit), limit: None }
+        Primes { current: 2, yielded: 0, count: Some(limit), limit: None, composites: BinaryHeap::new() }
     }
     fn all() -> Primes {
-        Primes { current: 2, yielded: Box::new(Vec::new()), count: None, limit: None }
+        Primes { current: 2, yielded: 0, count: None, limit: None, composites: BinaryHeap::new() }
     }
     fn less_than(limit: usize) -> Primes {
-        Primes { current: 2, yielded: Box::new(Vec::new()), count: None, limit: Some(limit) }
+        Primes { current: 2, yielded: 0, count: None, limit: Some(limit), composites: BinaryHeap::new() }
     }
 }
 
@@ -26,24 +29,33 @@ impl Iterator for Primes {
             if limit < self.current { return None }
         }
         if let Some(limit) = self.count {
-            if limit < self.yielded.len() { return None }
+            if limit < self.yielded { return None }
         }
-        let result = self.current;
-        let mut composite = false;
-        for k in &*self.yielded {
-            if (*k as f64) > (self.current as f64).sqrt() { break; }
-            if self.current % k == 0 {
-                composite = true;
+        if self.current == 2 {
+            self.current += 1; 
+            return Some(2) 
+        }
+        let mut is_prime = true;
+        while let Some(mut head) = self.composites.peek_mut() {
+            let Reverse([composite, prime]) = *head;
+            if composite > self.current {
                 break;
+            } else {
+                is_prime = false;
+                *head = Reverse([composite + 2 * prime, prime]);
             }
-        }
-        self.current += 1;
-        if !composite {
-            self.yielded.push(result);
-            Some(result)
-        } else {
-            self.next()
-        }
+        } 
+        if is_prime {
+            self.composites.push(Reverse([self.current.pow(2), self.current]));
+            self.current += 2;
+            // println!("{}: {:?}", self.current, self.composites);
+            self.yielded += 1;
+            return Some(self.current - 2)
+        } else { 
+            self.current += 2;
+            // println!("{}: {:?}", self.current, self.composites);
+            return self.next()
+         }
     }
 }
 
@@ -52,6 +64,7 @@ fn main() {
     for (j, p) in Primes::all().enumerate() {
         if j % 1_000_000 == 999_999 {
             let elapsed = now.elapsed().unwrap().as_millis();
+            // println!("{}: {}", j+1, p);
             println!("{} millionth prime is {}, time elapsed: {} ms", (j + 1) / 1_000_000 as usize, p, elapsed);
             now = SystemTime::now();
         }
