@@ -3,12 +3,19 @@ use std::time::SystemTime;
 struct Primes {
     current: usize,
     limit: Option<usize>,
+    count: Option<usize>,
     yielded: Box<Vec<usize>>
 }
 
 impl Primes {
-    fn new(limit: Option<usize>) -> Primes {
-        Primes { current: 2, yielded: Box::new(Vec::new()), limit: limit }
+    fn up_to(limit: usize) -> Primes {
+        Primes { current: 2, yielded: Box::new(Vec::new()), count: Some(limit), limit: None }
+    }
+    fn all() -> Primes {
+        Primes { current: 2, yielded: Box::new(Vec::new()), count: None, limit: None }
+    }
+    fn less_than(limit: usize) -> Primes {
+        Primes { current: 2, yielded: Box::new(Vec::new()), count: None, limit: Some(limit) }
     }
 }
 
@@ -16,6 +23,9 @@ impl Iterator for Primes {
     type Item = usize;
     fn next(&mut self) -> Option<usize> {
         if let Some(limit) = self.limit {
+            if limit < self.current { return None }
+        }
+        if let Some(limit) = self.count {
             if limit < self.yielded.len() { return None }
         }
         let result = self.current;
@@ -39,7 +49,7 @@ impl Iterator for Primes {
 
 fn main() {
     let mut now = SystemTime::now();
-    for (j, p) in Primes::new(None).enumerate() {
+    for (j, p) in Primes::all().enumerate() {
         if j % 1_000_000 == 999_999 {
             let elapsed = now.elapsed().unwrap().as_millis();
             println!("{} millionth prime is {}, time elapsed: {} ms", (j + 1) / 1_000_000 as usize, p, elapsed);
